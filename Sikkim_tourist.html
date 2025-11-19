@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sikkim - Interactive Tourist Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* ========== LAYOUT ========== */
+        .story-map-container {
+            max-width: 1400px;
+            margin: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            width: 100%;
+            padding: 25px;
+            background: linear-gradient(to right, #2c3e50, #4a6491);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: white;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ========== LEFT PANEL ========== */
+        .left-panel {
+            flex: 1;
+            min-width: 350px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        /* ========== SLIDESHOW ========== */
+        .map-slideshow {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .slideshow-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.8s ease;
+        }
+
+        .slide-content {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            color: #fff;
+            padding: 20px;
+        }
+
+        .slideshow-nav {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+            padding: 0 15px;
+        }
+
+        .nav-button {
+            background: rgba(255,255,255,0.8);
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .nav-button:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .slide-counter {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        /* ========== LIST ========== */
+        .location-list {
+            list-style: none;
+            padding: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+
+        .location-item {
+            background: #fff;
+            padding: 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .location-item:hover {
+            background: #f0f7ff;
+            transform: translateX(5px);
+        }
+
+        .active-location {
+            border-left-color: #4a6491;
+            background: #e9f2ff;
+            box-shadow: 0 3px 8px rgba(74, 100, 145, 0.2);
+        }
+
+        .location-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 15px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .location-text {
+            flex: 1;
+        }
+
+        .location-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .location-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        /* ========== RIGHT PANEL ========== */
+        .right-panel {
+            flex: 1.5;
+            min-width: 350px;
+            padding: 20px;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        #map {
+            width: 100%;
+            height: 750px;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .story-map-container {
+                flex-direction: column;
+            }
+            
+            .left-panel, .right-panel {
+                width: 100%;
+            }
+            
+            #map {
+                height: 400px;
+            }
+            
+            h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="story-map-container">
+    <header>
+        <h1>Sikkim - Interactive Tourist Spot</h1>
+        <p class="subtitle">Explore the breathtaking beauty of Sikkim with this interactive guide to its most stunning destinations</p>
+    </header>
+
+    <!-- LEFT PANEL -->
+    <div class="left-panel">
+        <!-- SLIDESHOW -->
+        <div class="map-slideshow" id="slideshow">
+            <img id="slideImage" class="slideshow-image" src="">
+            <div class="slide-counter">
+                <span id="currentSlide">1</span> / <span id="totalSlides">12</span>
+            </div>
+            <div class="slideshow-nav">
+                <button class="nav-button" onclick="changeSlide(-1)"><</button>
+                <button class="nav-button" onclick="changeSlide(1)">></button>
+            </div>
+            <div class="slide-content">
+                <h2 id="slideTitle"></h2>
+                <p id="slideDescription"></p>
+            </div>
+        </div>
+
+        <!-- LOCATION LIST -->
+        <ul class="location-list" id="locationList"></ul>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* ============================
+   SIKKIM LOCATION DATA WITH COORDINATES
+   ============================ */
+const locations = [
+    { 
+        id: 1, 
+        name: "Tsomgo Lake", 
+        lat: 27.3750, 
+        lng: 88.7639,
+        description: "Tsomgo Lake, also known as Tsongmo Lake or Changgu Lake, is a glacial lake in Changu in the Gangtok district of the Indian state of Sikkim, some 40 kilometres (25 mi) from the capital Gangtok. Located at an elevation of 3,753 m (12,313 ft), the lake remains frozen during the winter season. The lake surface reflects different colours with change of seasons and is held in great reverence by the local Sikkimese people. Buddhist monks prognosticated after studying the changing colours of the lake.",
+        image: "https://s.yimg.com/zb/imgv1/8d92eaca-007d-33ac-8ab7-0beaa31cd437/t_500x300",
+        icon: "https://s.yimg.com/zb/imgv1/8d92eaca-007d-33ac-8ab7-0beaa31cd437/t_500x300"
+    },
+    { 
+        id: 2, 
+        name: "Nathula Pass", 
+        lat: 27.3860, 
+        lng: 88.8290,
+        description: "Nathu La is one of the three frequently-used passes between Sikkim and the Chumbi Valley, the other two being Cho La and Jelep La. Historically, Nathu La served Gangtok, while Cho La served the former Sikkim capital Tumlong and Jelep La served Kalimpong in West Bengal.",
+        image: "https://travelogyindia.b-cdn.net/storage/app/upload/nathula-pass.jpg",
+        icon: "https://travelogyindia.b-cdn.net/storage/app/upload/nathula-pass.jpg"
+    },
+    { 
+        id: 3, 
+        name: "Rumtek Monastery", 
+        lat: 27.2936, 
+        lng: 88.5797,
+        description: "Rumtek Monastery (Tibetan: རུམ་ཐེག་དགོན་པ་, Wylie: rum theg dgon pa), also called the Dharma Chakra Centre, is a gompa located in the Indian state of Sikkim near the capital Gangtok. It is the seat in exile of the Gyalwang Karmapa, inaugurated in 1966 by the 16th Karmapa. It is also a focal point for the sectarian tensions within the Karma Kagyu school of Tibetan Buddhism that characterize the 17th Karmapa controversy.",
+        image: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Vikramjit-Kakati-Rumtek.jpg",
+        icon: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Vikramjit-Kakati-Rumtek.jpg"
+    },
+    { 
+        id: 4, 
+        name: "Yumthang Valley", 
+        lat: 27.8167, 
+        lng: 88.7000,
+        description: "The Yumthang Valley or Sikkim Valley of Flowers sanctuary, is a nature sanctuary with river, hot springs, yaks and grazing pasture on rolling meadows surrounded by the Himalayan mountains in Yumthang in the Mangan district of Sikkim state in India. It is approx. 75 km from Mangan town, the district headquarters. It is at an elevation of 3,564 metres (11,693 ft) above msl at a distance of 150 kilometres (93 mi) from the state capital Gangtok.",
+        image: "https://nomadicweekends.com/blog/wp-content/uploads/2019/02/30127775_1691986490895075_5743411120694099968_n.jpg",
+        icon: "https://nomadicweekends.com/blog/wp-content/uploads/2019/02/30127775_1691986490895075_5743411120694099968_n.jpg"
+    },
+    { 
+        id: 5, 
+        name: "Gurudongmar Lake", 
+        lat: 28.0200, 
+        lng: 88.7167,
+        description: "Gurudongmar Lake is one of the highest lakes in the world and in India, at an elevation of 5,430 m (17,800 ft) according to the Government of Sikkim.[a] It is located in the Great Himalayas in the Mangan District in Indian state of Sikkim, and considered sacred by Buddhists and Sikhs. The lake is named after Padmasambhava, who visited it in the 8th century.",
+        image: "hhttps://s.yimg.com/zb/imgv1/932c8155-9f05-3a6d-b539-021ebf37ebc1/t_500x300",
+        icon: "https://s.yimg.com/zb/imgv1/932c8155-9f05-3a6d-b539-021ebf37ebc1/t_500x300"
+    },
+    { 
+        id: 6, 
+        name: "Pelling", 
+        lat: 27.2890, 
+        lng: 88.2380,
+        description: "Pelling (པད་གླིང་། ) is a hill station in ( རྒྱལ་ཤིང་རྫོང་།) Gyalshing district of Sikkim, India. Pelling is nestled at an altitude of 2,150 m (7,050 ft). The town is located at a distance of 10 km from Gyalshing city, the district headquarters and 131 km from Gangtok. A regular bus service connects the two towns. However, with the influx of tourists, the region is undergoing a metamorphosis, with the roads being repaired and hotels being set up.",
+        image: "https://naturewings.com/images/west-sikkim/destination/Pelling.jpg",
+        icon: "https://naturewings.com/images/west-sikkim/destination/Pelling.jpg"
+    },
+    { 
+        id: 7, 
+        name: "Ravangla", 
+        lat: 27.3150, 
+        lng: 88.3560,
+        description: "Rabong or Ravangla is a small town with an elevation of 8000 feet located, near Namchi City in the Namchi district of the Indian state of Sikkim. It is connected by state highway to other major towns in the state and lies between Namchi, Pelling and Gangtok. It is the starting point for the trek to Maenam Wildlife Sanctuary. It is approximately 65 km from the state capital, Gangtok, and 120 km from Siliguri, West Bengal. The name is derived from the Sikkimese language. ‘Ra’ means wild sheep, 'vong' translates to a rearing place, and ‘la’ means a pass.",
+        image: "https://drivetonortheast.com/uploads/destinations/child/ravangla-3450-4602.jpg",
+        icon: "https://drivetonortheast.com/uploads/destinations/child/ravangla-3450-4602.jpg"
+    },
+    { 
+        id: 8, 
+        name: "Lachung", 
+        lat: 27.6833, 
+        lng: 88.7333,
+        description: "Lachung is a town and hill station in Mangan district in northeast Indian state of Sikkim. It is approx. 50 km Mangan town, the district headquarters. It is located in the Mangan district near the border with Tibet.",
+        image: "https://img.traveltriangle.com/blog/wp-content/uploads/2018/05/facebook-lachung_700x367.jpg",
+        icon: "https://img.traveltriangle.com/blog/wp-content/uploads/2018/05/facebook-lachung_700x367.jpg"
+    },
+    { 
+        id: 9, 
+        name: "Namchi", 
+        lat: 27.1667, 
+        lng: 88.3500,
+        description: "Namchi is a city and the administrative headquarter of the Namchi district in the Indian state of Sikkim. The appellation Namchi means Sky (Nam) High (Chi) in Sikkimese.",
+        image: "https://www.esikkimtourism.in/wp-content/uploads/2019/04/NAMCHI-MONSOON.jpg",
+        icon: "https://www.esikkimtourism.in/wp-content/uploads/2019/04/NAMCHI-MONSOON.jpg"
+    },
+    { 
+        id: 10, 
+        name: "Zuluk", 
+        lat: 27.2167, 
+        lng: 88.8333,
+        description: "Dzuluk or Zuluk or Jhuluk or Jaluk is a small hamlet located at a height of around 10,000 feet (3,000 m) on the rugged terrain of the lower Himalayas in East Sikkim of the Indian state Sikkim (Pincode 737131). This place is relatively an emerging and offbeat destination in East Sikkim. Today it is fast emerging as a new tourist destination. It derives its tourism importance due to the excellent view of the eastern Himalayan mountain range including the Kanchenjunga..",
+        image: "https://www.tourmyindia.com/blog/wp-content/uploads/2022/10/Zuluk-Sikkim-Tourism.jpg",
+        icon: "https://www.tourmyindia.com/blog/wp-content/uploads/2022/10/Zuluk-Sikkim-Tourism.jpg"
+    },
+    { 
+        id: 11, 
+        name: "Gangtok", 
+        lat: 27.3389, 
+        lng: 88.6065,
+        description: "Gangtok (Nepali: gāntok, pronounced [gantok], Sikkimese: [ɡaŋt̪ʰòk]) is the capital and the most populous city of the Indian state of Sikkim. The seat of eponymous district, Gangtok is in the eastern Himalayan range, at an elevation of 1,650 m (5,410 ft). The city's population of 100,000 consists of the three Sikkimese ethnicities: the Bhutias, Lepchas, Indian Gorkhas as well as plainsmen from other states of India. Within the higher peaks of the Himalayas and with a year-round mild temperate climate, Gangtok is at the centre of Sikkim's tourism industry.",
+        image: "https://s.yimg.com/zb/imgv1/b5f14c15-a077-310d-9991-ff42847ab0fe/t_500x300",
+        icon: "https://s.yimg.com/zb/imgv1/b5f14c15-a077-310d-9991-ff42847ab0fe/t_500x300"
+    },
+    { 
+        id: 12, 
+        name: "Khecheopalri Lake", 
+        lat: 27.3833, 
+        lng: 88.2000,
+        description: "Khecheopalri Lake, originally known as Kha-Chot-Palri (meaning the heaven of Padmasambhava), is a lake located near Khecheopalri village, 147 kilometres (91 mi) west of Gangtok in the West Sikkim district of the Northeastern Indian state of Sikkim",
+        image: "https://img.traveltriangle.com/blog/wp-content/uploads/2017/08/khecheopalri-lake.jpg",
+        icon: "https://img.traveltriangle.com/blog/wp-content/uploads/2017/08/khecheopalri-lake.jpg"
+    }
+];
+
+/* ============================
+   SLIDESHOW + MAP CONTROLS
+   ============================ */
+let currentSlide = 0;
+let map;
+let markers = [];
+
+/* Render Slide */
+function showSlide(index) {
+    currentSlide = index;
+    const loc = locations[index];
+
+    document.getElementById("slideImage").src = loc.image;
+    document.getElementById("slideTitle").innerText = loc.name;
+    document.getElementById("slideDescription").innerText = loc.description;
+    document.getElementById("currentSlide").innerText = index + 1;
+
+    // Update list highlighting
+    document.querySelectorAll(".location-item").forEach((el, i) => {
+        el.classList.toggle("active-location", i === index);
+    });
+
+    // Highlight marker
+    markers.forEach((m, i) => {
+        if (i === index) {
+            m.setIcon(new L.Icon({
+                iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+                iconSize: [40, 40]
+            }));
+            m.openPopup();
+            map.setView(m.getLatLng(), 10);
+        } else {
+            m.setIcon(new L.Icon.Default());
+        }
+    });
+}
+
+function changeSlide(direction) {
+    currentSlide = (currentSlide + direction + locations.length) % locations.length;
+    showSlide(currentSlide);
+}
+
+/* Render List */
+function renderLocationList() {
+    const listEl = document.getElementById("locationList");
+    listEl.innerHTML = "";
+
+    locations.forEach((loc, index) => {
+        const item = document.createElement("li");
+        item.className = "location-item";
+        item.innerHTML = `
+            <img class="location-icon" src="${loc.icon}" alt="${loc.name}">
+            <div class="location-text">
+                <div class="location-name">${loc.name}</div>
+                <div class="location-desc">${loc.description.substring(0, 70)}...</div>
+            </div>
+        `;
+        item.onclick = () => showSlide(index);
+        listEl.appendChild(item);
+    });
+}
+
+/* Add Map Markers */
+function addMarkers() {
+    locations.forEach((loc, index) => {
+        const marker = L.marker([loc.lat, loc.lng])
+            .addTo(map)
+            .bindPopup(`
+                <div style="text-align:center">
+                    <h3>${loc.name}</h3>
+                    <img src="${loc.icon}" style="width:150px;height:100px;object-fit:cover;border-radius:5px;margin:5px 0">
+                    <p>${loc.description}</p>
+                </div>
+            `);
+        marker.on("click", () => showSlide(index));
+        markers.push(marker);
+    });
+}
+
+/* INIT EVERYTHING */
+function init() {
+    renderLocationList();
+    document.getElementById("totalSlides").innerText = locations.length;
+    showSlide(0);
+
+    // Initialize map centered on Sikkim
+    map = L.map("map").setView([27.5, 88.6], 9);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    addMarkers();
+}
+
+window.onload = init;
+</script>
+
+</body>
+</html>
